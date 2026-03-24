@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KeyFlow</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ── Hidden SVG filter (liquid glass distortion) ─────────── -->
+<svg style="display:none">
+  <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
+    <feTurbulence type="fractalNoise" baseFrequency="0.01 0.01" numOctaves="1" seed="5" result="turbulence"/>
+    <feComponentTransfer in="turbulence" result="mapped">
+      <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5"/>
+      <feFuncG type="gamma" amplitude="0" exponent="1"  offset="0"/>
+      <feFuncB type="gamma" amplitude="0" exponent="1"  offset="0.5"/>
+    </feComponentTransfer>
+    <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap"/>
+    <feSpecularLighting in="softMap" surfaceScale="5" specularConstant="1"
+      specularExponent="100" lighting-color="white" result="specLight">
+      <fePointLight x="-200" y="-200" z="300"/>
+    </feSpecularLighting>
+    <feComposite in="specLight" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litImage"/>
+    <feDisplacementMap in="SourceGraphic" in2="softMap" scale="150" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+
+<!-- ── App shell ────────────────────────────────────────────── -->
+<div class="app">
+
+  <!-- Title bar -->
+  <div class="titlebar">
+    <span class="titlebar-icon">⌨</span>
+    <div class="titlebar-text">
+      <span class="titlebar-name">KeyFlow</span>
+      <span class="titlebar-sub">Auto-Type Simulator</span>
+    </div>
+
+    <!-- Background picker -->
+    <div class="bg-picker" id="bgPicker">
+      <span class="bg-picker-label">Background</span>
+      <div class="bg-swatch active" onclick="setBg(0,this)" style="background:linear-gradient(135deg,#0f0c29,#302b63,#24243e)"></div>
+      <div class="bg-swatch" onclick="setBg(1,this)" style="background:linear-gradient(135deg,#0a0a0a,#1a1a2e,#16213e)"></div>
+      <div class="bg-swatch" onclick="setBg(2,this)" style="background:linear-gradient(135deg,#1a0533,#2d1b69,#11998e)"></div>
+      <div class="bg-swatch" onclick="setBg(3,this)" style="background:linear-gradient(135deg,#0d1117,#161b22,#21262d)"></div>
+      <div class="bg-swatch" onclick="setBg(4,this)" style="background:linear-gradient(135deg,#200122,#6f0000,#200122)"></div>
+      <div class="bg-swatch" onclick="setBg(5,this)" style="background:linear-gradient(135deg,#093028,#237a57,#093028)"></div>
+      <div class="bg-swatch" onclick="setBg(6,this)" style="background:linear-gradient(135deg,#3a1c71,#d76d77,#ffaf7b)"></div>
+      <div class="bg-swatch" onclick="setBg(7,this)" style="background:linear-gradient(135deg,#2c3e50,#4ca1af,#2c3e50)"></div>
+      <div class="bg-swatch" onclick="setBg(8,this)" style="background:linear-gradient(135deg,#c9d6df,#e2ebf0,#f5f7fa)"></div>
+      <div class="bg-swatch" onclick="setBg(9,this)" style="background:linear-gradient(135deg,#e8d5b7,#f5e6d3,#fdf0e0)"></div>
+      <div class="bg-swatch" onclick="setBg(10,this)" style="background:linear-gradient(135deg,#d4a5a5,#e8c5c5,#f5e6e6)"></div>
+      <div class="bg-swatch" onclick="setBg(11,this)" style="background:linear-gradient(135deg,#1a1a2e,#e94560,#0f3460)"></div>
+    </div>
+  </div>
+
+  <!-- Text panel (left) -->
+  <div class="text-panel">
+    <div class="section-label">Your Text</div>
+
+    <div class="text-box-wrap liquidGlass-wrapper" style="cursor:default">
+      <div class="liquidGlass-effect"></div>
+      <div class="liquidGlass-tint"></div>
+      <div class="liquidGlass-shine"></div>
+      <textarea
+        id="inputText"
+        placeholder="Paste or type your text here.&#10;&#10;KeyFlow will type it wherever your cursor is — Google Docs, Word, Notion, any text field."
+      ></textarea>
+    </div>
+
+    <div class="char-count" id="charCount">0 chars</div>
+  </div>
+
+  <!-- Controls panel (right) -->
+  <div class="controls">
+
+    <!-- Start Delay -->
+    <div class="section-label">Start Delay</div>
+    <div class="liquidGlass-wrapper ctrl-card" style="cursor:default">
+      <div class="liquidGlass-effect"></div>
+      <div class="liquidGlass-tint"></div>
+      <div class="liquidGlass-shine"></div>
+      <div class="liquidGlass-text">
+        <div class="ctrl-title">Seconds before typing starts</div>
+        <div class="ctrl-caption">Switch to your target window in this time</div>
+        <div class="slider-row">
+          <input type="range" id="delaySlider" min="1" max="30" value="5" />
+          <span class="slider-val" id="delayVal">5s</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Typing Speed -->
+    <div class="section-label">Typing Speed</div>
+    <div class="liquidGlass-wrapper ctrl-card" style="cursor:default">
+      <div class="liquidGlass-effect"></div>
+      <div class="liquidGlass-tint"></div>
+      <div class="liquidGlass-shine"></div>
+      <div class="liquidGlass-text">
+        <div class="slider-row">
+          <span class="slider-label">Speed (WPM)</span>
+          <span class="slider-val" id="wpmVal">60 wpm</span>
+        </div>
+        <input type="range" id="wpmSlider" min="10" max="140" value="60" />
+        <div class="slider-row" style="margin-top:6px">
+          <span class="slider-label">Variation</span>
+          <span class="slider-val" id="variVal">40%</span>
+        </div>
+        <input type="range" id="variSlider" min="0" max="100" value="40" />
+      </div>
+    </div>
+
+    <!-- Pauses -->
+    <div class="section-label">Pauses</div>
+    <div class="liquidGlass-wrapper ctrl-card" style="cursor:default">
+      <div class="liquidGlass-effect"></div>
+      <div class="liquidGlass-tint"></div>
+      <div class="liquidGlass-shine"></div>
+      <div class="liquidGlass-text">
+        <div class="slider-row">
+          <span class="slider-label">Pause chance</span>
+          <span class="slider-val" id="pauseVal">8%</span>
+        </div>
+        <input type="range" id="pauseSlider" min="0" max="40" value="8" />
+        <div class="toggle-row" style="margin-top:6px">
+          <span class="toggle-label">Long think pauses</span>
+          <input type="checkbox" id="longPause" checked />
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Punctuation pauses</span>
+          <input type="checkbox" id="punctPause" checked />
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /controls -->
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="liquidGlass-wrapper footer-card" style="cursor:default">
+      <div class="liquidGlass-effect"></div>
+      <div class="liquidGlass-tint"></div>
+      <div class="liquidGlass-shine"></div>
+      <div class="liquidGlass-text">
+
+        <div class="status-row">
+          <div class="status-dot ready" id="statusDot"></div>
+          <span class="status-text" id="statusText">Ready</span>
+          <span class="progress-label" id="progressLabel"></span>
+        </div>
+
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="kf-btn primary liquidGlass-wrapper" id="startBtn" onclick="kfStart()">
+            <div class="liquidGlass-effect"></div>
+            <div class="liquidGlass-tint"></div>
+            <div class="liquidGlass-shine"></div>
+            <span class="btn-label">▶  Start Typing</span>
+          </button>
+
+          <button class="kf-btn normal liquidGlass-wrapper disabled" id="pauseBtn" onclick="kfPause()" disabled>
+            <div class="liquidGlass-effect"></div>
+            <div class="liquidGlass-tint"></div>
+            <div class="liquidGlass-shine"></div>
+            <span class="btn-label" id="pauseLabel">⏸  Pause</span>
+          </button>
+
+          <button class="kf-btn danger liquidGlass-wrapper" id="clearBtn" onclick="kfClear()">
+            <div class="liquidGlass-effect"></div>
+            <div class="liquidGlass-tint"></div>
+            <div class="liquidGlass-shine"></div>
+            <span class="btn-label">✕  Clear</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div><!-- /footer -->
+
+</div><!-- /app -->
+
+<script>
+// ── Background gradients ─────────────────────────────────────
+const gradients = [
+  'linear-gradient(135deg, #0f0c29, #302b63, #24243e)',   // 0  deep violet
+  'linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e)',   // 1  midnight navy
+  'linear-gradient(135deg, #1a0533, #2d1b69, #11998e)',   // 2  purple teal
+  'linear-gradient(135deg, #0d1117, #161b22, #21262d)',   // 3  github dark
+  'linear-gradient(135deg, #200122, #6f0000, #200122)',   // 4  deep crimson
+  'linear-gradient(135deg, #093028, #237a57, #093028)',   // 5  forest
+  'linear-gradient(135deg, #3a1c71, #d76d77, #ffaf7b)',   // 6  sunset
+  'linear-gradient(135deg, #2c3e50, #4ca1af, #2c3e50)',   // 7  ocean slate
+  'linear-gradient(135deg, #c9d6df, #e2ebf0, #f5f7fa)',   // 8  light mist
+  'linear-gradient(135deg, #e8d5b7, #f5e6d3, #fdf0e0)',   // 9  warm cream
+  'linear-gradient(135deg, #d4a5a5, #e8c5c5, #f5e6e6)',   // 10 blush
+  'linear-gradient(135deg, #1a1a2e, #e94560, #0f3460)',   // 11 neon night
+];
+
+function setBg(index, el) {
+  document.body.style.background = gradients[index];
+  document.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Set default on load
+document.body.style.background = gradients[0];
+
+// ── Slider wiring ────────────────────────────────────────────
+document.getElementById('delaySlider').addEventListener('input', e =>
+  document.getElementById('delayVal').textContent = e.target.value + 's');
+document.getElementById('wpmSlider').addEventListener('input', e =>
+  document.getElementById('wpmVal').textContent = e.target.value + ' wpm');
+document.getElementById('variSlider').addEventListener('input', e =>
+  document.getElementById('variVal').textContent = e.target.value + '%');
+document.getElementById('pauseSlider').addEventListener('input', e =>
+  document.getElementById('pauseVal').textContent = e.target.value + '%');
+
+// ── Char count ───────────────────────────────────────────────
+document.getElementById('inputText').addEventListener('input', e => {
+  document.getElementById('charCount').textContent = e.target.value.length + ' chars';
+});
+
+// ── Status helpers ───────────────────────────────────────────
+function setStatus(state, text) {
+  document.getElementById('statusDot').className  = 'status-dot ' + state;
+  const lbl = document.getElementById('statusText');
+  lbl.className   = 'status-text ' + state;
+  lbl.textContent = text;
+}
+
+function setProgress(done, total) {
+  const pct = total > 0 ? (done / total * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent =
+    total > 0 ? done + ' / ' + total + ' chars' : '';
+}
+
+function setButtons(started) {
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  if (started) {
+    startBtn.disabled = true;  startBtn.classList.add('disabled');
+    clearBtn.disabled = true;  clearBtn.classList.add('disabled');
+    pauseBtn.disabled = false; pauseBtn.classList.remove('disabled');
+  } else {
+    startBtn.disabled = false; startBtn.classList.remove('disabled');
+    clearBtn.disabled = false; clearBtn.classList.remove('disabled');
+    pauseBtn.disabled = true;  pauseBtn.classList.add('disabled');
+    document.getElementById('pauseLabel').textContent = '⏸  Pause';
+  }
+}
+
+// ── Button actions ───────────────────────────────────────────
+let isPaused = false;
+
+function kfPause() {
+  if (isPaused) {
+    window.webkit.messageHandlers.keyflow.postMessage({ cmd: 'resume' });
+  } else {
+    window.webkit.messageHandlers.keyflow.postMessage({ cmd: 'pause' });
+  }
+}
+
+function kfClear() {
+  window.webkit.messageHandlers.keyflow.postMessage({ cmd: 'stop' });
+}
+
+// ── Native callbacks ─────────────────────────────────────────
+window.keyflow = {
+  receive(event, data) {
+    switch(event) {
+      case 'onStarted':    isPaused = false; setButtons(true); break;
+      case 'onProgress':   setProgress(data.done, data.total); break;
+      case 'onDone':
+        setStatus('done', '✓ Done');
+        setProgress(0, 0); setButtons(false); isPaused = false; break;
+      case 'onPaused':
+        isPaused = true; setStatus('paused', '⏸ Paused');
+        document.getElementById('pauseLabel').textContent = '▶  Resume'; break;
+      case 'onResumed':
+        isPaused = false; setStatus('typing', '⌨ Typing...');
+        document.getElementById('pauseLabel').textContent = '⏸  Pause'; break;
+      case 'onStopped':
+        setStatus('ready', 'Ready'); setProgress(0, 0); setButtons(false);
+        document.getElementById('inputText').value = '';
+        document.getElementById('charCount').textContent = '0 chars';
+        isPaused = false; break;
+      case 'onAccessibilityNeeded':
+        setStatus('warning', '⚠ Grant Accessibility in System Settings, then restart');
+        setButtons(false); break;
+    }
+  }
+};
+
+// ── Start with countdown ─────────────────────────────────────
+function kfStart() {
+  const text = document.getElementById('inputText').value.trim();
+  if (!text) { setStatus('warning', '⚠ Paste some text first'); return; }
+
+  const delay = parseInt(document.getElementById('delaySlider').value);
+  setButtons(true);
+  document.getElementById('pauseBtn').disabled = true;
+  document.getElementById('pauseBtn').classList.add('disabled');
+
+  let remaining = delay;
+  setStatus('paused', '⏱ Starting in ' + remaining + 's — click your target window!');
+
+  const tick = setInterval(() => {
+    remaining--;
+    if (remaining > 0) {
+      setStatus('paused', '⏱ Starting in ' + remaining + 's — click your target window!');
+    } else {
+      clearInterval(tick);
+      setStatus('typing', '⌨ Typing...');
+      document.getElementById('pauseBtn').disabled = false;
+      document.getElementById('pauseBtn').classList.remove('disabled');
+    }
+  }, 1000);
+
+  window.webkit.messageHandlers.keyflow.postMessage({
+    cmd:         'start',
+    text:        text,
+    delay:       delay,
+    wpm:         parseFloat(document.getElementById('wpmSlider').value),
+    variation:   parseFloat(document.getElementById('variSlider').value) / 100,
+    pauseChance: parseFloat(document.getElementById('pauseSlider').value) / 100,
+    longPauses:  document.getElementById('longPause').checked,
+    punctPauses: document.getElementById('punctPause').checked,
+  });
+}
+</script>
+</body>
+</html>
