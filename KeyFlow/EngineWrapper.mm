@@ -13,7 +13,7 @@
     cc.wpm = cfg.wpm; cc.variation = cfg.variation; cc.pauseChance = cfg.pauseChance;
     cc.longPauses = cfg.longPauses; cc.punctPauses = cfg.punctPauses;
 
-    __unsafe_unretained __typeof__(self) weakSelf = self;
+    __weak typeof(self) weakSelf = self;
     _engine.onProgress = [weakSelf](int done, int total) {
         dispatch_async(dispatch_get_main_queue(), ^{
             if (weakSelf.onProgress) weakSelf.onProgress(done, total);
